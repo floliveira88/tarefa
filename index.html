@@ -1,103 +1,138 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To Do List Simples</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f4f4;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-        }
-        input[type="text"] {
-            width: 80%;
-            padding: 10px;
-            margin-right: 5px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            padding: 10px 15px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            padding: 10px;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            margin-top: 5px;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-        }
-        li.done {
-            text-decoration: line-through;
-            color: gray;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>To Do List Simples</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 400px; margin: 20px auto; }
+  h1 { text-align: center; }
+  input[type="text"] { width: 80%; padding: 8px; }
+  button { padding: 8px 12px; margin-left: 5px; }
+  ul { list-style: none; padding-left: 0; }
+  li { display: flex; align-items: center; margin: 8px 0; }
+  li input[type="checkbox"] { margin-right: 10px; }
+  li.completed { text-decoration: line-through; color: gray; }
+  .buttons { margin-top: 15px; text-align: center; }
+</style>
 </head>
 <body>
 
-    <h1>✅ Minha To Do List</h1>
+<h1>To Do List</h1>
 
-    <input type="text" id="taskInput" placeholder="Digite uma tarefa...">
-    <button onclick="addTask()">Adicionar</button>
+<div>
+  <input id="taskInput" type="text" placeholder="Nova tarefa" />
+  <button onclick="addTask()">Adicionar</button>
+</div>
 
-    <ul id="taskList"></ul>
+<ul id="taskList"></ul>
 
-    <script>
-        function addTask() {
-            const input = document.getElementById("taskInput");
-            const taskText = input.value.trim();
+<div class="buttons">
+  <button onclick="clearTasks()">Limpar Lista</button>
+  <button onclick="downloadPDF()">Baixar PDF</button>
+</div>
 
-            if (taskText === "") {
-                alert("Digite uma tarefa!");
-                return;
-            }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  const taskInput = document.getElementById('taskInput');
+  const taskList = document.getElementById('taskList');
 
-            const li = document.createElement("li");
+  // Carrega as tarefas do localStorage
+  function loadTasks() {
+    const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    taskList.innerHTML = '';
+    tasks.forEach(({ text, done }) => {
+      addTaskToDOM(text, done);
+    });
+  }
 
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.onchange = function() {
-                if (this.checked) {
-                    li.classList.add("done");
-                } else {
-                    li.classList.remove("done");
-                }
-            };
+  // Salva as tarefas no localStorage
+  function saveTasks() {
+    const tasks = [];
+    taskList.querySelectorAll('li').forEach(li => {
+      tasks.push({
+        text: li.querySelector('label').innerText,
+        done: li.querySelector('input[type="checkbox"]').checked
+      });
+    });
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
 
-            const span = document.createElement("span");
-            span.textContent = taskText;
-            span.style.marginLeft = "10px";
+  // Adiciona tarefa ao DOM
+  function addTaskToDOM(text, done = false) {
+    const li = document.createElement('li');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = done;
+    checkbox.addEventListener('change', () => {
+      li.classList.toggle('completed', checkbox.checked);
+      saveTasks();
+    });
 
-            li.appendChild(checkbox);
-            li.appendChild(span);
+    const label = document.createElement('label');
+    label.textContent = text;
 
-            document.getElementById("taskList").appendChild(li);
+    li.appendChild(checkbox);
+    li.appendChild(label);
+    li.classList.toggle('completed', done);
+    taskList.appendChild(li);
+  }
 
-            input.value = "";
+  // Adiciona nova tarefa
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (text === '') return alert('Digite uma tarefa!');
+    addTaskToDOM(text);
+    saveTasks();
+    taskInput.value = '';
+    taskInput.focus();
+  }
+
+  // Limpar todas as tarefas
+  function clearTasks() {
+    if (confirm('Deseja limpar toda a lista?')) {
+      taskList.innerHTML = '';
+      saveTasks();
+    }
+  }
+
+  // Baixar lista em PDF
+  async function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Minha To Do List', 14, 20);
+
+    const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    doc.setFontSize(12);
+    let y = 30;
+
+    if (tasks.length === 0) {
+      doc.text('Nenhuma tarefa na lista.', 14, y);
+    } else {
+      tasks.forEach(({ text, done }, i) => {
+        const status = done ? '[x]' : '[ ]';
+        doc.text(`${status} ${text}`, 14, y);
+        y += 10;
+        if (y > 280) {  // Quebra de página simples
+          doc.addPage();
+          y = 20;
         }
-    </script>
+      });
+    }
+
+    doc.save('todo-list.pdf');
+  }
+
+  // Inicializa
+  loadTasks();
+
+  // Permite adicionar tarefa apertando Enter
+  taskInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+</script>
 
 </body>
 </html>
+
